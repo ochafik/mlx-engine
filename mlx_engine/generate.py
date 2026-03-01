@@ -398,6 +398,7 @@ def _sequential_generation(
     min_tokens_to_keep: Optional[int] = None,
     seed: Optional[int] = None,
     json_schema: Optional[str] = None,
+    extra_logits_processors: Optional[List] = None,
     max_tokens: Optional[int] = 10000000,
     speculative_decoding_toggle: Optional[bool] = None,
     num_draft_tokens: Optional[int] = None,
@@ -500,6 +501,10 @@ def _sequential_generation(
                     tensor_library_name="mlx",
                 )
             )
+
+        # Add any extra logits processors (e.g. grammar constraints from callers)
+        if extra_logits_processors:
+            logits_processors.extend(extra_logits_processors)
 
         # Set up stop string processor if non-empty stop_strings are provided
         stop_string_processor = create_stop_string_processor(stop_strings, tokenizer)
@@ -612,6 +617,7 @@ def _batched_generation(
     min_tokens_to_keep: Optional[int] = None,
     seed: Optional[int] = None,  # Seed arg is ignored for batched gen
     json_schema: Optional[str] = None,
+    extra_logits_processors: Optional[List] = None,
     max_tokens: Optional[int] = 10000000,
     speculative_decoding_toggle: Optional[bool] = None,
     num_draft_tokens: Optional[int] = None,
@@ -663,6 +669,10 @@ def _batched_generation(
                 tensor_library_name="mlx",
             )
         )
+
+    # Add any extra logits processors (e.g. grammar constraints from callers)
+    if extra_logits_processors:
+        logits_processors.extend(extra_logits_processors)
 
     # Set up stop string processor if non-empty stop_strings are provided
     stop_string_processor = create_stop_string_processor(stop_strings, tokenizer)
