@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mlx-engine"
+version = "0.1.0"
+description = "MLX inference engine with vision model support, KV caching, and speculative decoding"
+requires-python = ">=3.10"
+dependencies = [
+    "mlx>=0.30",
+    "mlx-lm>=0.30",
+    "mlx-vlm>=0.3.11",
+    "huggingface-hub",
+    "outlines>=1.0",
+    "outlines-core>=0.1",
+    "fastapi",
+    "pydantic",
+    "transformers",
+    "safetensors",
+    "sentencepiece",
+]
+
+[tool.setuptools.packages.find]
+include = ["mlx_engine*"]
