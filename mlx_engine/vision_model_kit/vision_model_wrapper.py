@@ -36,6 +36,14 @@ class VisionModelWrapper:
             "model_inputs": {},
         }
 
+        # Ensure language model has position encoding state initialized.
+        # Some mlx_vlm models (e.g. qwen3_5_moe) omit _position_ids in __init__.
+        lm = model.language_model
+        if not hasattr(lm, "_position_ids"):
+            lm._position_ids = None
+        if not hasattr(lm, "_rope_deltas"):
+            lm._rope_deltas = None
+
     def __getattr__(self, name):
         """
         First, check if the name is a member of this class
