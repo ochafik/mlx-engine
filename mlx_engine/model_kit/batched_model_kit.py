@@ -58,6 +58,8 @@ class BatchedModelKit:
         model_path: Path,
         max_kv_size: int | None = None,
         max_seq_nums: int | None = None,
+        kv_bits: int | None = None,
+        kv_group_size: int | None = None,
     ):
         self._requests = Queue()
         self._prompt_cache = LRUPromptCache()
@@ -69,6 +71,8 @@ class BatchedModelKit:
             max_seq_nums = 1
             logger.info(f"Setting concurrent request limit to {max_seq_nums}")
         self._max_seq_nums = max_seq_nums
+        self._kv_bits = kv_bits
+        self._kv_group_size = kv_group_size
 
         self._model_path = model_path
         logger.info(f"Loading model from {model_path}...")
@@ -252,6 +256,11 @@ class BatchedModelKit:
                         (min(processed, total), total)
                     )
 
+        kv_kwargs = {}
+        if self._kv_bits is not None:
+            kv_kwargs["kv_bits"] = self._kv_bits
+        if self._kv_group_size is not None:
+            kv_kwargs["kv_group_size"] = self._kv_group_size
         batch_generator = BatchGenerator(
             self.model,
             max_tokens=10000000,
@@ -265,6 +274,7 @@ class BatchedModelKit:
             logits_processors=None,
             prompt_progress_callback=progress_callback,
             max_kv_size=self._max_kv_size,
+            **kv_kwargs,
         )
         # only using one model, so model key name value does not matter
         current_model_key = "lmstudio"

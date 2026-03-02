@@ -212,13 +212,7 @@ def load_model(
                     "this model architecture does not support continuous batching"
                 )
                 return False
-            # 2. KV cache quantization is not compatible with batching yet
-            if kv_bits is not None:
-                warn_if_parallel(
-                    "concurrency is not supported with KV Cache Quantization"
-                )
-                return False
-            # 3. Vision models are not compatible with batching yet
+            # 2. Vision models are not compatible with batching yet
             if "vision_config" in config_json:
                 if parallel_requested:
                     raise ValueError(
@@ -238,6 +232,8 @@ def load_model(
                 model_path,
                 max_kv_size=max_kv_size,
                 max_seq_nums=max_seq_nums,
+                kv_bits=kv_bits,
+                kv_group_size=kv_group_size,
             )
         else:
             model_kit = ModelKit(

@@ -9,11 +9,11 @@ description = "MLX inference engine with vision model support, KV caching, and s
 requires-python = ">=3.10"
 dependencies = [
     "mlx>=0.30",
-    "mlx-lm>=0.30",
+    "mlx-lm @ git+https://github.com/ochafik/mlx-lm.git@batch-kv-quantization",
     "mlx-vlm>=0.3.11",
     "huggingface-hub",
     "outlines>=1.0,<1.2",
-    "outlines-core>=0.1,<0.2",
+    "outlines_core>=0.1,<0.2",
     "fastapi",
     "pydantic",
     "transformers",
