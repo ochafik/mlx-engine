@@ -5,8 +5,9 @@ This module contains the request/response types and exceptions used for
 communicating with the batched generation backend.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from queue import Queue
+from typing import Any, Optional
 from mlx_engine.utils.token import Token
 
 
@@ -46,6 +47,7 @@ class GenerationRequest:
     logits_processors: list
     top_logprobs: int
     max_tokens: int
+    prompt_cache: Optional[Any] = field(default=None)
 
 
 @dataclass

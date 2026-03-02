@@ -618,6 +618,7 @@ def _batched_generation(
     speculative_decoding_toggle: Optional[bool] = None,
     num_draft_tokens: Optional[int] = None,
     request_id: str | None = None,
+    prompt_cache=None,
 ) -> Iterator[GenerationResult]:
     # We need a request_id so that we can communicate with the batched backend
     if request_id is None or request_id == "":
@@ -686,6 +687,7 @@ def _batched_generation(
         logits_processors=logits_processors,
         prompt_progress_callback=mlx_lm_callback,
         top_logprobs=top_logprobs,
+        prompt_cache=prompt_cache,
     )
 
     while True:

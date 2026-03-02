@@ -124,6 +124,7 @@ class BatchedModelKit:
         prompt_progress_callback,
         top_logprobs,
         max_tokens,
+        prompt_cache=None,
     ):
         """
         This method queues a generation request to the background thread and returns
@@ -161,6 +162,7 @@ class BatchedModelKit:
                 logits_processors,
                 top_logprobs,
                 max_tokens,
+                prompt_cache=prompt_cache,
             )
         )
 
@@ -306,8 +308,7 @@ class BatchedModelKit:
             max_kv_size=self._max_kv_size,
             **kv_kwargs,
         )
-        # only using one model, so model key name value does not matter
-        current_model_key = "lmstudio"
+        current_model_key = str(self._model_path)
 
         def get_next_request(timeout=None):
             try:
@@ -341,10 +342,14 @@ class BatchedModelKit:
                         logger.warning(f"Could not cancel {request_id=} (id not found)")
                     continue
 
-                # Get cache
-                cache, rest = self._prompt_cache.fetch_nearest_cache(
-                    current_model_key, request.prompt_tokens
-                )
+                # Get cache (prefer pre-loaded disk cache if provided)
+                if request.prompt_cache is not None:
+                    cache = request.prompt_cache
+                    rest = request.prompt_tokens
+                else:
+                    cache, rest = self._prompt_cache.fetch_nearest_cache(
+                        current_model_key, request.prompt_tokens
+                    )
 
                 # Add to batch
                 (uid,) = batch_generator.insert(
