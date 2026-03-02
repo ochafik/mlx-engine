@@ -64,6 +64,7 @@ class BatchedModelKit:
         self._requests = Queue()
         self._prompt_cache = LRUPromptCache()
         self._batch_results = {}
+        self._slot_status: dict = {}  # uid -> slot info dict
         self._backend_exception = None
         self._generation_thread = None
         self._shutdown = Event()
@@ -209,6 +210,31 @@ class BatchedModelKit:
             if self._generation_thread:
                 self._generation_thread.join()
 
+    def get_status(self) -> dict:
+        """Return real-time status of all generation slots."""
+        now = time.time()
+        slots = []
+        for uid, info in list(self._slot_status.items()):
+            elapsed = now - info["start_time"]
+            slot = {
+                "request_id": info["request_id"],
+                "state": info["state"],
+                "prompt_tokens": info["prompt_tokens"],
+                "prompt_processed": info["prompt_processed"],
+                "generated_tokens": info["generated_tokens"],
+                "elapsed_s": round(elapsed, 2),
+            }
+            if info["state"] == "prefill" and info["prompt_tokens"] > 0:
+                slot["prefill_pct"] = round(100 * info["prompt_processed"] / info["prompt_tokens"], 1)
+            if info["state"] == "generating" and elapsed > 0:
+                slot["generation_tps"] = round(info["generated_tokens"] / elapsed, 1)
+            slots.append(slot)
+        return {
+            "max_slots": self._max_seq_nums,
+            "active_slots": len(slots),
+            "slots": slots,
+        }
+
     def _generate_with_exception_handling(self):
         """
         Wrapper around _generate that catches and handles fatal exceptions.
@@ -255,6 +281,10 @@ class BatchedModelKit:
                     self._batch_results[uid]["rqueue"].put(
                         (min(processed, total), total)
                     )
+                if uid in self._slot_status:
+                    self._slot_status[uid]["prompt_processed"] = min(processed, total)
+                    if min(processed, total) >= total:
+                        self._slot_status[uid]["state"] = "generating"
 
         kv_kwargs = {}
         if self._kv_bits is not None:
@@ -305,6 +335,7 @@ class BatchedModelKit:
                             batch_generator.remove([uid])
                             self._batch_results[uid]["rqueue"].put(RequestCancelled())
                             del self._batch_results[uid]
+                            self._slot_status.pop(uid, None)
                             break
                     if not found_request_id:
                         logger.warning(f"Could not cancel {request_id=} (id not found)")
@@ -332,6 +363,14 @@ class BatchedModelKit:
                     "top_logprobs": request.top_logprobs,
                     "request_id": request.request_id,
                 }
+                self._slot_status[uid] = {
+                    "request_id": request.request_id,
+                    "state": "prefill",
+                    "prompt_tokens": len(request.prompt_tokens),
+                    "prompt_processed": 0,
+                    "generated_tokens": 0,
+                    "start_time": time.time(),
+                }
 
                 # Check for new requests
                 continue
@@ -354,6 +393,10 @@ class BatchedModelKit:
                     # Create response object
                     result = self._batch_results[r.uid]
                     result["cache_key"].append(r.token)
+                    if r.uid in self._slot_status:
+                        self._slot_status[r.uid]["generated_tokens"] += 1
+                        if self._slot_status[r.uid]["state"] == "prefill":
+                            self._slot_status[r.uid]["state"] = "generating"
                     if r.finish_reason != "stop":
                         result["detokenizer"].add_token(r.token)
                     token_logprob = r.logprobs[r.token].item()
@@ -397,6 +440,7 @@ class BatchedModelKit:
                             current_model_key, result["cache_key"], r.prompt_cache
                         )
                         del self._batch_results[r.uid]
+                        self._slot_status.pop(r.uid, None)
 
         for entry in self._batch_results.values():
             entry["rqueue"].put(RequestCancelled("Model shutdown requested"))
